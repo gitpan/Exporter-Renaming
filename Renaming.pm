@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = ('$Revision: 1.16 $' =~ /(\d+.\d+)/)[ 0];
+our $VERSION = ('$Revision: 1.17 $' =~ /(\d+.\d+)/)[ 0];
 
 my $exporter_import; # holds coderef to original Exporter behavior, if defined
 

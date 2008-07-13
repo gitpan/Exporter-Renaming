@@ -134,6 +134,7 @@ BEGIN {
 
 ### full functional test (check all types)
 {{
+our ($scalar, @array, %hash, $glob, @glob, %glob);
 SampleMod->import( Renaming => [
     code => 'code',
     scalar => '$scalar',
