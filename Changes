@@ -10,3 +10,8 @@ Revision history for Perl extension Exporter::Renaming.
 
 1.17  Sun Jul 13 23:59:30 CEST 2008
          - fixed bug in test file t/1.t
+
+1.18  Mon Jul 14 17:03:09 CEST 2008
+         - A perl buglet (if new Exporter runs with old Carp) leads
+           to two failed tests.
+           fixed, released

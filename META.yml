@@ -1,10 +1,10 @@
 --- #YAML:1.0
 name:                Exporter-Renaming
-version:             1.17
+version:             1.18
 abstract:            Allow renaming of symbols on import
 license:             ~
 author:              
-    - Anno (icke) <anno@local.>
+    - Anno Siegel
 generated_by:        ExtUtils::MakeMaker version 6.42
 distribution_type:   module
 requires:     

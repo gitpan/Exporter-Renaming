@@ -1,11 +1,15 @@
 #!perl
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl 1.t'
-
-#########################
 
 # We use "require()" and "->import" in these tests to emulate
 # "use" at run-time
+
+# work around perl buglet: if new Exporter is used with old Carp
+# Carp attributes errors wrongly
+
+BEGIN {
+    $Carp::Internal{Exporter}++;
+    $Carp::Internal{'Exporter::Heavy'}++;
+}
 
 use Test::More;
 my $n_tests;
