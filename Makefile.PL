@@ -4,9 +4,9 @@ use ExtUtils::MakeMaker;
 # the contents of the Makefile that is written.
 WriteMakefile(
     'NAME'		=> 'Exporter::Renaming',
-    'VERSION_FROM'	=> 'Renaming.pm', # finds $VERSION
+    'VERSION_FROM'	=> 'lib/Exporter/Renaming.pm', # finds $VERSION
     'PREREQ_PM'		=> {}, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
-      (ABSTRACT_FROM => 'Renaming.pm', # retrieve abstract from module
+      (ABSTRACT_FROM => 'lib/Exporter/Renaming.pm', # retrieve abstract from module
        AUTHOR     => 'Anno Siegel') : ()),
 );

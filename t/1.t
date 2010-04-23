@@ -62,7 +62,30 @@ undef *woohoo; undef *weehee;
 File::Find->import( Renaming => [ find => undef]);
 ok( \ &find == \ &File::Find::find, 'find not renamed');
 
-BEGIN { $n_tests += 7 }
+# [rt.cpan.org #56367] renaming on export_to_import() too
+# (2010-04-23)
+# must also override export_to_level().  (used by Benchmark)
+use Benchmark ();
+eval { Benchmark->import(Renaming => [ timethis => 'howfast' ], 'cmpthese') };
+ok(!length $@, 'export_to_level survived');
+ok(\ &Benchmark::timethis == \ &howfast, "Benchmark::timethis renamed to howfast");
+ok(\ &Benchmark::cmpthese == \ &cmpthese, "Benchmark::cmpthese imported");
+
+# [rt.cpan.org #56368] modules capturing import vs "no Exporter::Renaming"
+# example uses the Roman module, skip if not present
+
+Exporter::Renaming->import; # make sure we're active
+my $have_roman = eval { require Roman };
+SKIP: {
+    skip 'needs Roman module', 1 unless $have_roman;
+
+    Exporter::Renaming->unimport;
+    eval { Roman->import('Roman') };
+    ok(!length $@, 'Roman unhurt');
+    Exporter::Renaming->import; # switch back on
+}
+
+BEGIN { $n_tests += 11 }
 }}
 
 ### Handling Exporter errors

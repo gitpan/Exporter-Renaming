@@ -5,46 +5,74 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = ('$Revision: 1.18 $' =~ /(\d+.\d+)/)[ 0];
+our $VERSION = 1.19;
 
+my $renaming_on; # are we active?
 my $exporter_import; # holds coderef to original Exporter behavior, if defined
+my $exporter_to_level; # same for Export::Heavy::heavy_export_to_level
 
 # switch on renaming behavior of Exporter
 sub import {
-    return if defined $exporter_import; # never do this twice
+    return if $renaming_on; # never do this twice
     require Exporter;
+    require Exporter::Heavy;
     $exporter_import = \ &Exporter::import; # alias for original
+    $exporter_to_level = \ &Exporter::Heavy::heavy_export_to_level;
     no warnings 'redefine';
     *Exporter::import = \ &renaming_import; # renaming behavior
+    *Exporter::Heavy::heavy_export_to_level = \ &renaming_to_level;
+    $renaming_on = 1;
 }
 
 # restore Exporter's original behavior
 sub unimport {
-    return unless defined $exporter_import;
+    return unless $renaming_on;
     no warnings 'redefine';
     *Exporter::import = $exporter_import; # normal behavior
-    undef $exporter_import; # allow import again
+    *Exporter::Heavy::heavy_export_to_level = $exporter_to_level;
+    $renaming_on = 0; # allow import again
 }
 
 # This is the import routine we supplant into Exporter.  It interprets
 # a renaming package, if any, then resumes normal import through
 # "goto &$exporter_import".  This is this sub's way of returning
 sub renaming_import {
-    my ( $from_module, $key, $renamings) = @_;
-    my $to_module = caller;
+    # be as inconspicious as possible
+    goto $exporter_import unless $renaming_on;
+    my ($from_module, $key, $renamings, @normal) = @_;
     # check if we are needed at all
-    goto &$exporter_import unless
+    goto $exporter_import unless
         $key and $key eq 'Renaming' and ref $renamings eq 'ARRAY';
 
-    # re-arrange @_ for normal import
-    shift; shift; shift; unshift @_, $from_module;
+    my $to_module = caller;
+    process_renaming($from_module, $to_module, $renamings);
 
-    # process renamings
+    # do any remaining straight imports
+    return unless @normal;
+    @_ = ($from_module, @normal);
+    goto $exporter_import;
+}
+
+# replacement for Exporter::Heavy::heavy_export_to_level
+sub renaming_to_level {
+    goto $exporter_to_level unless $renaming_on;
+    my $pkg = shift;
+    my $level = shift;
+    (undef) = shift;                  # XXX redundant arg
+    my $callpkg = caller($level);
+    my ($key, $renamings, @normal) = @_;
+    return $pkg->export($callpkg, @_) unless
+        $key and $key eq 'Renaming' and ref $renamings eq 'ARRAY';
+    process_renaming($pkg, $callpkg, $renamings);
+    $pkg->export($callpkg, @normal) if @normal;
+}
+
+sub process_renaming {
+    my ($from, $to, $renamings) = @_;
+    my %table;
+    # build renaming table, basically as %table = reverse @$renamings,
+    # but do error checking and type (sigil) propagation
     croak( "Odd number of renaming elements") if @$renamings % 2;
-
-    # build renaming table, basically as %table = reverse @$renamings
-    # but do error checking and type propagation
-    my %table; # maps new names to old names (!)
     while ( @$renamings ) {
         my ( $old_sym, $new_sym) = ( shift @$renamings, shift @$renamings);
         $new_sym ||= $old_sym; # default to straight import
@@ -71,17 +99,16 @@ sub renaming_import {
         croak( "Multiple renamings to '$new_sym'") if exists $table{ $new_sym};
         $table{ $new_sym} = $old_sym;
     }
-    goto &$exporter_import unless %table;
 
     # Jump through Exporter's hoops for all original symbols
     {
         package Exporter::Renaming::Inter; # name space for importing
 
         # We want Exporter's messages passed on to our user
-        our @CARP_NOT = qw( Exporter);
+        our @CARP_NOT = qw(Exporter Exporter::Renaming);
         # "values %table" may list some symbols more than once, but Exporter
         # sorts that out.
-        $exporter_import->( $from_module, values %table); # original names
+        $exporter_import->($from, values %table); # original names
     }
 
     # If we are here, all imports are ok (under the original names)
@@ -89,10 +116,8 @@ sub renaming_import {
     while ( my ( $new, $old) = each %table ) {
         ( my( $type), $new) = _get_type( $new);
         ( undef, $old) = _get_type( $old);
-        _sym_alias( $type, "${from_module}::$old", "${to_module}::$new");
+        _sym_alias( $type, "${from}::$old", "${to}::$new");
     }
-    # do any remaining straight imports
-    goto &$exporter_import;
 }
 
 # split off type character
@@ -108,7 +133,7 @@ sub _sym_alias {
     my ( $type, $old, $new) = @_;
     $type ||= '&';
     no strict 'refs';
-    *{ $new} =
+    *{$new} =
        $type eq '$' ? \ ${ $old} :
        $type eq '@' ? \ @{ $old} :
        $type eq '%' ? \ %{ $old} :
